@@ -1,0 +1,12 @@
+/target
+/data
+/src/data
+.DS_Store
+.*.swp
+.*.swo
+tmp*
+*.svg
+perf.data
+perf.data.old
+client-data/
+server-data/
