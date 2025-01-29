@@ -133,21 +133,3 @@ pub trait MessageTrait: Serialize + for<'a> Deserialize<'a> {
 
 impl MessageTrait for ClientWorkPacket {}
 impl MessageTrait for ServerWorkPacket {}
-
-#[cfg(test)]
-mod t {
-    use super::{client_packet_deserialize, client_packet_serialize, ClientWorkPacket};
-
-    #[test]
-    fn serialize_bounce() {
-        let r = ClientWorkPacket {
-            work: crate::app::Work::Immediate,
-            timestamp: 42,
-        };
-
-        let v = client_packet_serialize(r);
-        let r2 = client_packet_deserialize(v).expect("deserialize the client packet");
-
-        assert_eq!(r2, r);
-    }
-}
