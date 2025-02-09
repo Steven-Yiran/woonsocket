@@ -21,7 +21,7 @@ pub fn tcp_server(addr: SocketAddrV4) {
         thread::spawn(move || {
             if let Err(e) = handle_conn(stream) {
                 eprintln!("Error: {:?}", e);
-            }
+            });
         }
     }
 }

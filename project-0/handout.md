@@ -31,6 +31,8 @@ You can setup the container as follows:
 
 `docker run -v /path/to/your/repo:/repo --name cs1675_container -it cs1675`
 
+`docker run -v /Users/yiranshi/dev/woonsocker:/repo --name cs1675_container -it cs1675`
+
 2. In another terminal, you can see the running docker container using
 
 `docker ps`
