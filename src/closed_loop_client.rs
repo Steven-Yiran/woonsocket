@@ -20,7 +20,28 @@ fn client_worker(server_addr: SocketAddrV4, runtime: Duration, work: Work) -> Ve
     //
     // This function is a closed loop client sending a request, then waiting for
     // a response. It should return a vector of latency records.
-    unimplemented!()
+    
+    let mut latencies = Vec::new();
+    let mut stream = TcpStream::connect(server_addr).unwrap();
+    let mut client_conn = ClientWorkPacketConn::new(stream);
+    let mut server_conn = ServerWorkPacketConn::new(stream);
+
+    let start = Instant::now();
+    while start.elapsed() < runtime {
+        let work_packet = ClientWorkPacket::new(rand::random(), work);
+        let send_timestamp = get_current_time_micros();
+        client_conn.send_work_msg(work_packet).unwrap();
+        let server_work_packet = server_conn.recv_work_msg().unwrap();
+        let recv_timestamp = get_current_time_micros();
+        let latency = recv_timestamp - send_timestamp;
+        latencies.push(LatencyRecord {
+            latency,
+            send_timestamp,
+            server_processing_time: server_work_packet.server_processing_time,
+            recv_timestamp,
+        });
+    }
+    latencies
 }
 
 pub fn init_client(
@@ -52,5 +73,19 @@ pub fn run(
     // TODO: Output your request latencies to make your graph. You can calculate
     // your graph data here, or output raw data and calculate them externally.
     // You SHOULD write your output to outdir.
-    unimplemented!()
+    let mut output_file = BufWriter::new(File::create(outdir.join("latencies.txt")).unwrap());
+    for thread_latencies in request_latencies {
+        for latency in thread_latencies {
+            writeln!(
+                output_file,
+                "{} {} {} {}",
+                latency.latency,
+                latency.send_timestamp,
+                latency.server_processing_time,
+                latency.recv_timestamp
+            )
+            .unwrap();
+        }
+    }
+
 }

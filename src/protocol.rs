@@ -25,13 +25,24 @@ pub mod work_request {
             // resulting bytes are variable length but guaranteed to be <
             // MSG_SIZE_BYTES so students should account for this when sending a
             // ClientWorkPacket.
-
-		unimplemented!()
+            
+            let mut buf = vec![0; MSG_SIZE_BYTES];
+            let sz = packet.to_bytes(&mut buf)?; //sz is u64
+            // send size of message then message
+            self.stream.send_msg_chunk(&sz.to_be_bytes())?;
+            self.stream.send_msg_chunk(&buf[..sz as usize])?;
+            Ok(())
         }
 
         pub fn recv_work_msg(&mut self) -> Result<ClientWorkPacket, anyhow::Error> {
             // TODO: Students should implement this method
-		unimplemented!()
+            let mut sz_buf = [0; 8];
+            self.stream.recv_msg_chunk(&mut sz_buf)?;
+            let sz = u64::from_le_bytes(sz_buf);
+            let mut buf = vec![0; sz as usize];
+            self.stream.recv_msg_chunk(&mut buf)?;
+            let packet = ClientWorkPacket::from_bytes(&buf)?;
+            Ok(packet)
         }
 
         // TODO: Students can implement their own methods
@@ -59,12 +70,24 @@ pub mod work_response {
             //
             // NOTE: for Project-0. We can assume that ServerWorkPacket will
             // always be < MSG_SIZE_BYTES. This will change in the next projects
-		unimplemented!()
+            
+            let mut buf = vec![0; MSG_SIZE_BYTES];
+            let sz = packet.to_bytes(&mut buf)?; //sz is u64
+            // send size of message then message
+            self.stream.send_msg_chunk(&sz.to_be_bytes())?;
+            self.stream.send_msg_chunk(&buf[..sz as usize])?;
+            Ok(())
         }
 
         pub fn recv_work_msg(&mut self) -> Result<ServerWorkPacket, anyhow::Error> {
             // TODO: Students should implement this method
-		unimplemented!()
+            let mut sz_buf = [0; 8];
+            self.stream.recv_msg_chunk(&mut sz_buf)?;
+            let sz = u64::from_le_bytes(sz_buf);
+            let mut buf = vec![0; sz as usize];
+            self.stream.recv_msg_chunk(&mut buf)?;
+            let packet = ServerWorkPacket::from_bytes(&buf)?;
+            Ok(packet)
         }
 
         // TODO: Students can implement their own methods

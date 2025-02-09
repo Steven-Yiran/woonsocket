@@ -35,7 +35,23 @@ fn client_open_loop(
     //
     // This function is the send side of an open loop client. It sends data
     // every thread-delay duration.
-    unimplemented!()
+    let mut conn = ClientWorkPacketConn::new(send_stream);
+    let start_time = Instant::now();
+
+    while start_time.elapsed() < runtime {
+        let work_packet = ClientWorkPacket::new(get_current_time_micros(), work);
+        if let Err(e) = conn.send_work_msg(work_packet) {
+            eprintln!("Failed to send work packet: {}", e);
+            break; // Stop sending if there's an issue
+        }
+        packets_sent.fetch_add(1, Ordering::SeqCst);
+
+        let elapsed = start_time.elapsed();
+        if elapsed < thread_delay {
+            let sleep_time = thread_delay - elapsed;
+            thread::sleep(sleep_time);
+        }
+    }
 }
 
 fn client_recv_loop(
@@ -44,7 +60,31 @@ fn client_recv_loop(
 ) -> Vec<LatencyRecord> {
     // TODO: Students will have to write this code.
     // This function is the recvs responses for an open loop client.
-    unimplemented!()
+    let mut conn = ServerWorkPacketConn::new(recv_stream);
+    let mut latencies = Vec::new();
+
+    while !receiver_complete.load(Ordering::SeqCst) {
+        match conn.recv_work_msg() {
+            Ok(server_work_packet) => {
+                let recv_timestamp = get_current_time_micros();
+                let latency = recv_timestamp - server_work_packet.client_send_time;
+                latencies.push(LatencyRecord {
+                    latency,
+                    send_timestamp: server_work_packet.client_send_time,
+                    server_processing_time: server_work_packet.server_processing_time,
+                    recv_timestamp,
+                });
+            }
+            Err(e) => {
+                if receiver_complete.load(Ordering::SeqCst) {
+                    break; // Stop if sending is done and there's no more data
+                }
+                std::thread::sleep(Duration::from_millis(1)); // Avoid CPU spinning
+            }
+        }
+    }
+
+    latencies
 }
 
 fn init_client(
@@ -104,5 +144,18 @@ pub fn run(
     // TODO: Output your request latencies to make your graph. You can calculate
     // your graph data here, or output raw data and calculate them externally.
     // You SHOULD write your output to outdir.
-    unimplemented!()
+    let mut output_file = BufWriter::new(File::create(outdir.join("latencies.txt")).unwrap());
+    for thread_latencies in request_latencies {
+        for latency in thread_latencies {
+            writeln!(
+                output_file,
+                "{} {} {} {}",
+                latency.latency,
+                latency.send_timestamp,
+                latency.server_processing_time,
+                latency.recv_timestamp
+            )
+            .unwrap();
+        }
+    }
 }
