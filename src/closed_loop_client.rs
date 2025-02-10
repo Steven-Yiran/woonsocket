@@ -32,14 +32,14 @@ fn client_worker(server_addr: SocketAddrV4, runtime: Duration, work: Work) -> Ve
         // Send the work packet to the server
         if let Err(e) = client_conn.send_work_msg(work_packet) {
             eprintln!("Failed to send work packet: {:?}", e);
-            continue; // Skip this iteration on failure
+            continue;
         }
         // Receive the server's response
         let server_work_packet = match server_conn.recv_work_msg() {
             Ok(packet) => packet,
             Err(e) => {
                 eprintln!("Failed to receive server work packet: {:?}", e);
-                continue; // Skip this iteration on failure
+                continue;
             }
         };
         // Calculate latency

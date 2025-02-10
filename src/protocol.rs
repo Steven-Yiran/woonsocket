@@ -93,13 +93,38 @@ pub mod work_response {
 
         pub fn recv_work_msg(&mut self) -> Result<ServerWorkPacket, anyhow::Error> {
             // TODO: Students should implement this method
+            eprintln!("Starting to receive work message...");
             let mut sz_buf = [0; 8];
-            self.stream.recv_msg_chunk(&mut sz_buf)?;
+            match self.stream.recv_msg_chunk(&mut sz_buf) {
+                Ok(_) => eprintln!("Successfully received size buffer: {:?}", sz_buf),
+                Err(e) => {
+                    eprintln!("Failed to receive size buffer: {:?}", e);
+                    return Err(e.into());
+                }
+            }
+            
             let sz = u64::from_le_bytes(sz_buf);
+            eprintln!("Decoded message size: {} bytes", sz);
+            
             let mut buf = vec![0; sz as usize];
-            self.stream.recv_msg_chunk(&mut buf)?;
-            let packet = ServerWorkPacket::from_bytes(&buf)?;
-            Ok(packet)
+            match self.stream.recv_msg_chunk(&mut buf) {
+                Ok(_) => eprintln!("Successfully received message buffer of size {}", sz),
+                Err(e) => {
+                    eprintln!("Failed to receive message buffer: {:?}", e);
+                    return Err(e.into());
+                }
+            }
+            
+            match ServerWorkPacket::from_bytes(&buf) {
+                Ok(packet) => {
+                    eprintln!("Successfully deserialized ServerWorkPacket");
+                    Ok(packet)
+                }
+                Err(e) => {
+                    eprintln!("Failed to deserialize ServerWorkPacket: {:?}", e);
+                    Err(e)
+                }
+            }
         }
 
         // TODO: Students can implement their own methods
