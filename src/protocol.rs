@@ -16,7 +16,8 @@ pub mod work_request {
     }
 
     impl ClientWorkPacketConn {
-        pub fn new(stream: TcpStream) -> Self {
+        pub fn new(stream: &TcpStream) -> Self {
+            let stream = stream.try_clone().expect("Failed to clone stream");
             let chunked_stream = ChunkedTcpStream::new(stream);
             Self { stream: chunked_stream }
         }
@@ -66,7 +67,8 @@ pub mod work_response {
     }
 
     impl ServerWorkPacketConn {
-        pub fn new(stream: TcpStream) -> Self {
+        pub fn new(stream: &TcpStream) -> Self {
+            let stream = stream.try_clone().expect("Failed to clone stream");
             let chunked_stream = ChunkedTcpStream::new(stream);
             Self { stream: chunked_stream }
         }

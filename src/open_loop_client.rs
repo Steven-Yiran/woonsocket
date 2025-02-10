@@ -36,9 +36,8 @@ fn client_open_loop(
     // This function is the send side of an open loop client. It sends data
     // every thread-delay duration.
     let mut conn = ClientWorkPacketConn::new(send_stream);
-    let start_time = Instant::now();
 
-    while start_time.elapsed() < runtime {
+    while thread_start_time.elapsed() < runtime {
         let work_packet = ClientWorkPacket::new(get_current_time_micros(), work);
         if let Err(e) = conn.send_work_msg(work_packet) {
             eprintln!("Failed to send work packet: {}", e);
@@ -46,7 +45,7 @@ fn client_open_loop(
         }
         packets_sent.fetch_add(1, Ordering::SeqCst);
 
-        let elapsed = start_time.elapsed();
+        let elapsed = thread_start_time.elapsed();
         if elapsed < thread_delay {
             let sleep_time = thread_delay - elapsed;
             thread::sleep(sleep_time);
