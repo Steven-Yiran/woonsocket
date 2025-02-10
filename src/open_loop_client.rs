@@ -60,17 +60,17 @@ fn client_recv_loop(
 ) -> Vec<LatencyRecord> {
     // TODO: Students will have to write this code.
     // This function is the recvs responses for an open loop client.
-    let mut conn = ServerWorkPacketConn::new(recv_stream);
+    let mut conn = ServerWorkPacketConn::new(chunked_tcp_stream::ChunkedTcpStream(recv_stream));
     let mut latencies = Vec::new();
 
     while !receiver_complete.load(Ordering::SeqCst) {
         match conn.recv_work_msg() {
             Ok(server_work_packet) => {
                 let recv_timestamp = get_current_time_micros();
-                let latency = recv_timestamp - server_work_packet.client_send_time;
+                let latency = recv_timestamp - server_work_packet.client_send_time();
                 latencies.push(LatencyRecord {
                     latency,
-                    send_timestamp: server_work_packet.client_send_time,
+                    send_timestamp: server_work_packet.client_send_time(),
                     server_processing_time: server_work_packet.server_processing_time,
                     recv_timestamp,
                 });

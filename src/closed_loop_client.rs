@@ -22,7 +22,7 @@ fn client_worker(server_addr: SocketAddrV4, runtime: Duration, work: Work) -> Ve
     // a response. It should return a vector of latency records.
     
     let mut latencies = Vec::new();
-    let mut stream = TcpStream::connect(server_addr).unwrap();
+    let mut stream = ChunkedTcpStream::connect(server_addr).unwrap();
     let mut client_conn = ClientWorkPacketConn::new(stream);
     let mut server_conn = ServerWorkPacketConn::new(stream);
 

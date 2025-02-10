@@ -26,7 +26,7 @@ pub fn tcp_server(addr: SocketAddrV4) {
     }
 }
 
-fn handle_conn(stream: TcpStream) {
+fn handle_conn(stream: TcpStream) -> Result<(), anyhow::Error> {
     // TODO: Students will have to write this code.
     // NOTE: It might be helpful to look at protocol.rs first. You'll probably
     // be implementing that alongside this function.
@@ -34,16 +34,12 @@ fn handle_conn(stream: TcpStream) {
     // This function handles one client connection. It receives a
     // ClientWorkPacket, does work using ClientWorkPacket::do_work which returns
     // a ServerWorkPacket, then sends this ServerWorkPacket back to the client.
-    
-    let mut client_conn = ClientWorkPacketConn::new(stream);
+    let mut stream = ChunkedTcpStream::new(stream);
+    let mut client_conn = ClientWorkPacketConn::new(stream.clone());
     let mut server_conn = ServerWorkPacketConn::new(stream);
-    let work_packet = match client_conn.recv_work_msg() {
-        Ok(packet) => packet,
-        Err(e) => {
-            eprintln!("Error receiving work packet: {:?}", e);
-            return Err(e);
-        }
-    };
+    let work_packet = client_conn.recv_work_msg()?;
     let server_work_packet = work_packet.do_work();
-    server_conn.send_work_msg(server_work_packet).unwrap();
+    server_conn.send_work_msg(server_work_packet)?;
+
+    Ok(())
 }
