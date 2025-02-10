@@ -16,8 +16,9 @@ pub mod work_request {
     }
 
     impl ClientWorkPacketConn {
-        pub fn new(stream: ChunkedTcpStream) -> Self {
-            Self { stream }
+        pub fn new(stream: TcpStream) -> Self {
+            let chunked_stream = ChunkedTcpStream::new(stream);
+            Self { stream: chunked_stream }
         }
 
         pub fn send_work_msg(
