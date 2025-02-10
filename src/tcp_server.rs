@@ -26,7 +26,7 @@ pub fn tcp_server(addr: SocketAddrV4) {
     }
 }
 
-fn handle_conn(stream: TcpStream) -> Result<(), anyhow::Error> {
+fn handle_conn(stream: TcpStream) {
     // TODO: Students will have to write this code.
     // NOTE: It might be helpful to look at protocol.rs first. You'll probably
     // be implementing that alongside this function.

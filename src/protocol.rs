@@ -16,6 +16,10 @@ pub mod work_request {
     }
 
     impl ClientWorkPacketConn {
+        pub fn new(stream: ChunkedTcpStream) -> Self {
+            Self { stream }
+        }
+
         pub fn send_work_msg(
             &mut self,
             work_packet: ClientWorkPacket,
@@ -27,7 +31,7 @@ pub mod work_request {
             // ClientWorkPacket.
             
             let mut buf = vec![0; MSG_SIZE_BYTES];
-            let sz = packet.to_bytes(&mut buf)?; //sz is u64
+            let sz = work_packet.to_bytes(&mut buf)?; //sz is u64
             // send size of message then message
             self.stream.send_msg_chunk(&sz.to_be_bytes())?;
             self.stream.send_msg_chunk(&buf[..sz as usize])?;
@@ -61,6 +65,10 @@ pub mod work_response {
     }
 
     impl ServerWorkPacketConn {
+        pub fn new(stream: ChunkedTcpStream) -> Self {
+            Self { stream }
+        }
+
         pub fn send_work_msg(&mut self, packet: ServerWorkPacket) -> Result<(), anyhow::Error> {
             // TODO: Students should implement this method.
             // serialize.rs contains how ServerWorkPacket is serialized. The
