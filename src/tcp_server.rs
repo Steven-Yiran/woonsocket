@@ -34,8 +34,9 @@ fn handle_conn(stream: TcpStream) -> Result<(), anyhow::Error> {
     // This function handles one client connection. It receives a
     // ClientWorkPacket, does work using ClientWorkPacket::do_work which returns
     // a ServerWorkPacket, then sends this ServerWorkPacket back to the client.
-    let mut stream = ChunkedTcpStream::new(stream);
-    let mut client_conn = ClientWorkPacketConn::new(stream.clone());
+    let stream = stream.try_clone()?;
+    let mut client_conn = ClientWorkPacketConn::new(stream);
+    let stream = stream.try_clone()?;
     let mut server_conn = ServerWorkPacketConn::new(stream);
     let work_packet = client_conn.recv_work_msg()?;
     let server_work_packet = work_packet.do_work();

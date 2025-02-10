@@ -22,26 +22,33 @@ fn client_worker(server_addr: SocketAddrV4, runtime: Duration, work: Work) -> Ve
     // a response. It should return a vector of latency records.
     
     let mut latencies = Vec::new();
-    let stream = TcpStream::connect(&server_addr).except("Failed to connect to server");
-    let stream = stream.try_clone().except("Failed to clone stream");
+    let stream = TcpStream::connect(&server_addr).expect("Failed to connect to server");
+    let stream = stream.try_clone().expect("Failed to clone stream");
     let mut client_conn = ClientWorkPacketConn::new(stream);
-    let stream = stream.try_clone().except("Failed to clone stream");
+    let stream = stream.try_clone().expect("Failed to clone stream");
     let mut server_conn = ServerWorkPacketConn::new(stream);
 
     let start = Instant::now();
     while start.elapsed() < runtime {
-        let work_packet = ClientWorkPacket::new(rand::random(), work);
-        let send_timestamp = get_current_time_micros();
-        client_conn.send_work_msg(work_packet).unwrap();
-        let server_work_packet = server_conn.recv_work_msg().unwrap();
+        let work_packet = ClientWorkPacket::new(rand::random(), work);        
+        // Send the work packet to the server
+        if let Err(e) = client_conn.send_work_msg(work_packet) {
+            eprintln!("Failed to send work packet: {:?}", e);
+            continue; // Skip this iteration on failure
+        }
+        // Receive the server's response
+        let server_work_packet = match server_conn.recv_work_msg() {
+            Ok(packet) => packet,
+            Err(e) => {
+                eprintln!("Failed to receive server work packet: {:?}", e);
+                continue; // Skip this iteration on failure
+            }
+        };
+        // Calculate latency
         let recv_timestamp = get_current_time_micros();
-        let latency = recv_timestamp - send_timestamp;
-        latencies.push(LatencyRecord {
-            latency,
-            send_timestamp,
-            server_processing_time: server_work_packet.server_processing_time,
-            recv_timestamp,
-        });
+        if let Some(latency_record) = server_work_packet.calculate_latency(recv_timestamp) {
+            latencies.push(latency_record);
+        }
     }
     latencies
 }

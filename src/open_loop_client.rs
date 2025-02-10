@@ -67,13 +67,11 @@ fn client_recv_loop(
         match conn.recv_work_msg() {
             Ok(server_work_packet) => {
                 let recv_timestamp = get_current_time_micros();
-                let latency = recv_timestamp - server_work_packet.client_send_time();
-                latencies.push(LatencyRecord {
-                    latency,
-                    send_timestamp: server_work_packet.client_send_time(),
-                    server_processing_time: server_work_packet.server_processing_time,
-                    recv_timestamp,
-                });
+                if let Some(latency_record) = server_work_packet.calculate_latency(recv_timestamp) {
+                    latencies.push(latency_record);
+                } else {
+                    eprintln!("Failed to calculate latency");
+                }
             }
             Err(e) => {
                 if receiver_complete.load(Ordering::SeqCst) {
