@@ -35,7 +35,7 @@ fn client_open_loop(
     //
     // This function is the send side of an open loop client. It sends data
     // every thread-delay duration.
-    let mut conn = ClientWorkPacketConn::new(send_stream);
+    let mut conn = ClientWorkPacketConn::new(&send_stream);
 
     while thread_start_time.elapsed() < runtime {
         let work_packet = ClientWorkPacket::new(get_current_time_micros(), work);

@@ -23,8 +23,8 @@ fn client_worker(server_addr: SocketAddrV4, runtime: Duration, work: Work) -> Ve
     
     let mut latencies = Vec::new();
     let stream = TcpStream::connect(&server_addr).expect("Failed to connect to server");
-    let mut client_conn = ClientWorkPacketConn::new(stream);
-    let mut server_conn = ServerWorkPacketConn::new(stream);
+    let mut client_conn = ClientWorkPacketConn::new(&stream);
+    let mut server_conn = ServerWorkPacketConn::new(&stream);
 
     let start = Instant::now();
     while start.elapsed() < runtime {
