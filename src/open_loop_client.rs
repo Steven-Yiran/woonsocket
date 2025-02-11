@@ -56,7 +56,7 @@ fn client_recv_loop(
 
     recv_stream.set_read_timeout(Some(Duration::from_millis(100))).ok();
     
-    eprintln("Server work Packet Conn created")
+    eprintln("Server work Packet Conn created");
     while !receiver_complete.load(Ordering::SeqCst) {
         if let Ok(server_work_packet) = conn.recv_work_msg() {
             eprintln!("Received work packet");
