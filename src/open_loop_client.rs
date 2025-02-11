@@ -68,14 +68,8 @@ fn client_recv_loop(
                 }
             }
             Err(e) => {
-                if e.kind() == std::io::ErrorKind::WouldBlock || 
-                   e.kind() == std::io::ErrorKind::TimedOut {
-                    continue;
-                }
-                if e.kind() == std::io::ErrorKind::ConnectionReset ||
-                   e.kind() == std::io::ErrorKind::BrokenPipe {
-                    break;
-                }
+               eprintln!("Error receiving work packet: {}", e);
+               break;
             }
         }
     }
