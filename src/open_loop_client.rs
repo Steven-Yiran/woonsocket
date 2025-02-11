@@ -63,26 +63,29 @@ fn client_recv_loop(
                 }
             }
             Err(e) => {
-                // Don't break on timeouts
-                if e.kind() == std::io::ErrorKind::WouldBlock || 
-                   e.kind() == std::io::ErrorKind::TimedOut {
-                    continue;
+                // Convert anyhow::Error to std::io::Error if possible
+                if let Some(io_err) = e.downcast_ref::<std::io::Error>() {
+                    // Don't break on timeouts
+                    if io_err.kind() == std::io::ErrorKind::WouldBlock || 
+                       io_err.kind() == std::io::ErrorKind::TimedOut {
+                        continue;
+                    }
+                    
+                    // Only break on connection-fatal errors
+                    if io_err.kind() == std::io::ErrorKind::ConnectionReset ||
+                       io_err.kind() == std::io::ErrorKind::ConnectionAborted ||
+                       io_err.kind() == std::io::ErrorKind::BrokenPipe {
+                        eprintln!("Connection error: {:?}", io_err);
+                        break;
+                    }
                 }
                 
                 // For other errors, log and continue collecting
                 eprintln!("Error receiving work packet: {:?}", e);
-                
-                // Only break on connection-fatal errors
-                if e.kind() == std::io::ErrorKind::ConnectionReset ||
-                   e.kind() == std::io::ErrorKind::ConnectionAborted ||
-                   e.kind() == std::io::ErrorKind::BrokenPipe {
-                    break;
-                }
             }
         }
     }
 
-    // Return whatever latencies we collected
     latencies
 }
 
