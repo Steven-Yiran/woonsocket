@@ -27,28 +27,21 @@ fn client_open_loop(
     packets_sent: Arc<AtomicU64>,
     work: Work,
 ) {
-    // TODO: Students will have to write this code.
-    // NOTE: It might be helpful to look at protocol.rs first. You'll probably
-    // be implementing that alongside this function. If you've done
-    // closed_loop_client.rs, then much of the work there applies here too so we
-    // recommend working on the closed_loop_client.rs file first.
-    //
-    // This function is the send side of an open loop client. It sends data
-    // every thread-delay duration.
     let mut conn = ClientWorkPacketConn::new(&send_stream);
+    let mut next_send_time = thread_start_time;
 
     while thread_start_time.elapsed() < runtime {
         let work_packet = ClientWorkPacket::new(get_current_time_micros(), work);
         if let Err(e) = conn.send_work_msg(work_packet) {
             eprintln!("Failed to send work packet: {}", e);
-            break; // Stop sending if there's an issue
+            break;
         }
         packets_sent.fetch_add(1, Ordering::SeqCst);
 
-        let elapsed = thread_start_time.elapsed();
-        if elapsed < thread_delay {
-            let sleep_time = thread_delay - elapsed;
-            thread::sleep(sleep_time);
+        // Calculate next send time and sleep until then
+        next_send_time += thread_delay;
+        if let Some(sleep_duration) = next_send_time.checked_duration_since(Instant::now()) {
+            thread::sleep(sleep_duration);
         }
     }
 }
