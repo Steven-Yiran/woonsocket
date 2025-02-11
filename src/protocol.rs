@@ -37,7 +37,7 @@ pub mod work_request {
             
             // Send the actual message
             eprintln!("Sending message payload");
-            self.stream.send_msg_chunk(&buf[..sz as usize])?;
+            self.stream.send_msg_chunk(&buf[..sz])?;
             
             eprintln!("Message sent successfully");
             Ok(())
@@ -103,7 +103,7 @@ pub mod work_response {
             
             // Send the message
             eprintln!("Sending message payload");
-            self.stream.send_msg_chunk(&buf[..sz as usize])?;
+            self.stream.send_msg_chunk(&buf[..sz])?;
             
             eprintln!("Response sent successfully");
             Ok(())
