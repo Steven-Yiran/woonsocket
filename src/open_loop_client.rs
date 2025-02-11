@@ -32,18 +32,14 @@ fn client_open_loop(
 
     while thread_start_time.elapsed() < runtime {
         let work_packet = ClientWorkPacket::new(get_current_time_micros(), work);
-        match conn.send_work_msg(work_packet) {
-            Ok(_) => {
-                packets_sent.fetch_add(1, Ordering::SeqCst);
-                next_send_time += thread_delay;
-                if let Some(sleep_duration) = next_send_time.checked_duration_since(Instant::now()) {
-                    thread::sleep(sleep_duration);
-                }
+        if conn.send_work_msg(work_packet).is_ok() {
+            packets_sent.fetch_add(1, Ordering::SeqCst);
+            next_send_time += thread_delay;
+            if let Some(sleep_duration) = next_send_time.checked_duration_since(Instant::now()) {
+                thread::sleep(sleep_duration);
             }
-            Err(e) => {
-                eprintln!("Failed to send work packet: {}", e);
-                break;
-            }
+        } else {
+            break;
         }
     }
 }
@@ -57,19 +53,11 @@ fn client_recv_loop(
     let mut conn = ServerWorkPacketConn::new(&recv_stream);
     let mut latencies = Vec::new();
     
-    recv_stream.set_read_timeout(Some(Duration::from_millis(100))).ok();
-
     while !receiver_complete.load(Ordering::SeqCst) {
-        match conn.recv_work_msg() {
-            Ok(server_work_packet) => {
-                let recv_timestamp = get_current_time_micros();
-                if let Some(latency_record) = server_work_packet.calculate_latency(recv_timestamp) {
-                    latencies.push(latency_record);
-                }
-            }
-            Err(e) => {
-               eprintln!("Error receiving work packet: {}", e);
-               break;
+        if let Ok(server_work_packet) = conn.recv_work_msg() {
+            let recv_timestamp = get_current_time_micros();
+            if let Some(latency_record) = server_work_packet.calculate_latency(recv_timestamp) {
+                latencies.push(latency_record);
             }
         }
     }
