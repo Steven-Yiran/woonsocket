@@ -69,10 +69,26 @@ pub mod work_response {
         pub fn send_work_msg(&mut self, packet: ServerWorkPacket) -> Result<(), anyhow::Error> {
             let mut buf = vec![0; MSG_SIZE_BYTES];
             let sz = packet.to_bytes(&mut buf)?;
+            eprintln!("Sending message with size: {} bytes", sz);
             
             let sz_bytes = (sz as u64).to_be_bytes();
-            self.stream.send_msg_chunk(&sz_bytes)?;
-            self.stream.send_msg_chunk(&buf[..sz as usize])?;
+            eprintln!("Size header bytes: {:?}", sz_bytes);
+            
+            match self.stream.send_msg_chunk(&sz_bytes) {
+                Ok(_) => eprintln!("Successfully sent size header"),
+                Err(e) => {
+                    eprintln!("Failed to send size header: {:?}", e);
+                    return Err(e.into());
+                }
+            }
+            
+            match self.stream.send_msg_chunk(&buf[..sz as usize]) {
+                Ok(_) => eprintln!("Successfully sent message body of {} bytes", sz),
+                Err(e) => {
+                    eprintln!("Failed to send message body: {:?}", e);
+                    return Err(e.into());
+                }
+            }
             
             Ok(())
         }

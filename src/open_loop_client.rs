@@ -54,7 +54,7 @@ fn client_recv_loop(
     let mut conn = ServerWorkPacketConn::new(&recv_stream);
     let mut latencies = Vec::new();
 
-    // recv_stream.set_read_timeout(Some(Duration::from_millis(100))).ok();
+    // recv_stream.set_read_timeout(Some(Duration::from_secs(5))).ok();
     
     eprintln!("Server work Packet Conn created");
     while !receiver_complete.load(Ordering::SeqCst) {
