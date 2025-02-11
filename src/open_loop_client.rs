@@ -54,17 +54,15 @@ fn client_recv_loop(
     let mut conn = ServerWorkPacketConn::new(&recv_stream);
     let mut latencies = Vec::new();
 
-    recv_stream.set_read_timeout(Some(Duration::from_millis(100))).ok();
+    // recv_stream.set_read_timeout(Some(Duration::from_millis(100))).ok();
     
     eprintln!("Server work Packet Conn created");
     while !receiver_complete.load(Ordering::SeqCst) {
         if let Ok(server_work_packet) = conn.recv_work_msg() {
-            eprintln!("Received work packet");
             let recv_timestamp = get_current_time_micros();
             if let Some(latency_record) = server_work_packet.calculate_latency(recv_timestamp) {
                 latencies.push(latency_record);
             }
-            eprintln!("Pushed latency record");
         } else if let Err(e) = conn.recv_work_msg() {
             eprintln!("Error receiving work packet: {:?}", e);
             break;

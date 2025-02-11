@@ -78,19 +78,50 @@ pub mod work_response {
         }
 
         pub fn recv_work_msg(&mut self) -> Result<ServerWorkPacket, anyhow::Error> {
+            // Debug size header read
+            eprintln!("Attempting to read size header (8 bytes)...");
             let mut sz_buf = [0; 8];
-            self.stream.recv_msg_chunk(&mut sz_buf)?;
-            let sz = u64::from_be_bytes(sz_buf);
+            match self.stream.recv_msg_chunk(&mut sz_buf) {
+                Ok(_) => eprintln!("Successfully read size header: {:?}", sz_buf),
+                Err(e) => {
+                    eprintln!("Failed to read size header: {:?}", e);
+                    return Err(e.into());
+                }
+            }
             
+            let sz = u64::from_be_bytes(sz_buf);
+            eprintln!("Decoded message size: {} bytes", sz);
+            
+            // Validate size
             const MAX_MESSAGE_SIZE: u64 = MSG_SIZE_BYTES as u64;
             if sz > MAX_MESSAGE_SIZE || sz == 0 {
+                eprintln!("Invalid message size: {} (max: {})", sz, MAX_MESSAGE_SIZE);
                 return Err(anyhow::anyhow!("Invalid message size: {}", sz));
             }
             
+            // Debug message body read
+            eprintln!("Attempting to read message body ({} bytes)...", sz);
             let mut buf = vec![0; sz as usize];
-            self.stream.recv_msg_chunk(&mut buf)?;
+            match self.stream.recv_msg_chunk(&mut buf) {
+                Ok(_) => eprintln!("Successfully read message body of {} bytes", sz),
+                Err(e) => {
+                    eprintln!("Failed to read message body: {:?}", e);
+                    return Err(e.into());
+                }
+            }
             
-            Ok(ServerWorkPacket::from_bytes(&buf)?)
+            // Debug deserialization
+            eprintln!("Attempting to deserialize message...");
+            match ServerWorkPacket::from_bytes(&buf) {
+                Ok(packet) => {
+                    eprintln!("Successfully deserialized message");
+                    Ok(packet)
+                }
+                Err(e) => {
+                    eprintln!("Failed to deserialize message: {:?}", e);
+                    Err(e)
+                }
+            }
         }
     }
 }
