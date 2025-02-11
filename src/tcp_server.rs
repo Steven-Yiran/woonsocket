@@ -8,7 +8,7 @@ use std::{
     thread,
 };
 
-pub fn tcp_server(addr: SocketAddrV4) {
+pub fn tcp_server(addr: SocketAddrV4) -> Result<(), anyhow::Error> {
     eprintln!("Starting TCP server on {:?}", addr);
     let listener = TcpListener::bind(addr).unwrap();
     eprintln!("Server bound successfully, waiting for connections...");
@@ -29,6 +29,8 @@ pub fn tcp_server(addr: SocketAddrV4) {
             }
         }
     }
+
+    Ok(())
 }
 
 fn handle_conn(stream: TcpStream) -> Result<(), anyhow::Error> {
