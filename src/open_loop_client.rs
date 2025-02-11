@@ -32,16 +32,18 @@ fn client_open_loop(
 
     while thread_start_time.elapsed() < runtime {
         let work_packet = ClientWorkPacket::new(get_current_time_micros(), work);
-        if let Err(e) = conn.send_work_msg(work_packet) {
-            eprintln!("Failed to send work packet: {}", e);
-            break;
-        }
-        packets_sent.fetch_add(1, Ordering::SeqCst);
-
-        // Calculate next send time and sleep until then
-        next_send_time += thread_delay;
-        if let Some(sleep_duration) = next_send_time.checked_duration_since(Instant::now()) {
-            thread::sleep(sleep_duration);
+        match conn.send_work_msg(work_packet) {
+            Ok(_) => {
+                packets_sent.fetch_add(1, Ordering::SeqCst);
+                next_send_time += thread_delay;
+                if let Some(sleep_duration) = next_send_time.checked_duration_since(Instant::now()) {
+                    thread::sleep(sleep_duration);
+                }
+            }
+            Err(e) => {
+                eprintln!("Failed to send work packet: {}", e);
+                break;
+            }
         }
     }
 }
@@ -54,6 +56,8 @@ fn client_recv_loop(
     // This function is the recvs responses for an open loop client.
     let mut conn = ServerWorkPacketConn::new(&recv_stream);
     let mut latencies = Vec::new();
+    
+    recv_stream.set_read_timeout(Some(Duration::from_millis(100))).ok();
 
     while !receiver_complete.load(Ordering::SeqCst) {
         match conn.recv_work_msg() {
@@ -61,15 +65,17 @@ fn client_recv_loop(
                 let recv_timestamp = get_current_time_micros();
                 if let Some(latency_record) = server_work_packet.calculate_latency(recv_timestamp) {
                     latencies.push(latency_record);
-                } else {
-                    eprintln!("Failed to calculate latency");
                 }
             }
             Err(e) => {
-                if receiver_complete.load(Ordering::SeqCst) {
-                    break; // Stop if sending is done and there's no more data
+                if e.kind() == std::io::ErrorKind::WouldBlock || 
+                   e.kind() == std::io::ErrorKind::TimedOut {
+                    continue;
                 }
-                std::thread::sleep(Duration::from_millis(1)); // Avoid CPU spinning
+                if e.kind() == std::io::ErrorKind::ConnectionReset ||
+                   e.kind() == std::io::ErrorKind::BrokenPipe {
+                    break;
+                }
             }
         }
     }
