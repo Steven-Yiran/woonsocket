@@ -53,8 +53,10 @@ fn client_recv_loop(
     eprintln!("Starting recv loop");
     let mut conn = ServerWorkPacketConn::new(&recv_stream);
     let mut latencies = Vec::new();
+
+    recv_stream.set_read_timeout(Some(Duration::from_millis(100))).ok();
     
-    eprintln!("Starting recv loop");
+    eprintln("Server work Packet Conn created")
     while !receiver_complete.load(Ordering::SeqCst) {
         if let Ok(server_work_packet) = conn.recv_work_msg() {
             eprintln!("Received work packet");
@@ -63,6 +65,9 @@ fn client_recv_loop(
                 latencies.push(latency_record);
             }
             eprintln!("Pushed latency record");
+        } else {
+            eprintln!("Error receiving work packet");
+            break;
         }
     }
 
