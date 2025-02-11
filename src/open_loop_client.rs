@@ -48,27 +48,41 @@ fn client_recv_loop(
     recv_stream: TcpStream,
     receiver_complete: Arc<AtomicBool>,
 ) -> Vec<LatencyRecord> {
-    // TODO: Students will have to write this code.
-    // This function is the recvs responses for an open loop client.
-    eprintln!("Starting recv loop");
     let mut conn = ServerWorkPacketConn::new(&recv_stream);
     let mut latencies = Vec::new();
 
-    // recv_stream.set_read_timeout(Some(Duration::from_secs(5))).ok();
+    // Set a reasonable timeout
+    recv_stream.set_read_timeout(Some(Duration::from_secs(5))).ok();
     
-    eprintln!("Server work Packet Conn created");
     while !receiver_complete.load(Ordering::SeqCst) {
-        if let Ok(server_work_packet) = conn.recv_work_msg() {
-            let recv_timestamp = get_current_time_micros();
-            if let Some(latency_record) = server_work_packet.calculate_latency(recv_timestamp) {
-                latencies.push(latency_record);
+        match conn.recv_work_msg() {
+            Ok(server_work_packet) => {
+                let recv_timestamp = get_current_time_micros();
+                if let Some(latency_record) = server_work_packet.calculate_latency(recv_timestamp) {
+                    latencies.push(latency_record);
+                }
             }
-        } else if let Err(e) = conn.recv_work_msg() {
-            eprintln!("Error receiving work packet: {:?}", e);
-            break;
+            Err(e) => {
+                // Don't break on timeouts
+                if e.kind() == std::io::ErrorKind::WouldBlock || 
+                   e.kind() == std::io::ErrorKind::TimedOut {
+                    continue;
+                }
+                
+                // For other errors, log and continue collecting
+                eprintln!("Error receiving work packet: {:?}", e);
+                
+                // Only break on connection-fatal errors
+                if e.kind() == std::io::ErrorKind::ConnectionReset ||
+                   e.kind() == std::io::ErrorKind::ConnectionAborted ||
+                   e.kind() == std::io::ErrorKind::BrokenPipe {
+                    break;
+                }
+            }
         }
     }
 
+    // Return whatever latencies we collected
     latencies
 }
 
