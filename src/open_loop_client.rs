@@ -65,8 +65,8 @@ fn client_recv_loop(
                 latencies.push(latency_record);
             }
             eprintln!("Pushed latency record");
-        } else {
-            eprintln!("Error receiving work packet");
+        } else if let Err(e) = conn.recv_work_msg() {
+            eprintln!("Error receiving work packet: {:?}", e);
             break;
         }
     }
