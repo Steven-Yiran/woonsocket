@@ -9,36 +9,59 @@ use std::{
 };
 
 pub fn tcp_server(addr: SocketAddrV4) {
-    // TODO: Students will have to write this code.
-    // There's nothing special here except the server should listen for new
-    // client connections and then spin off a new thread to handle that
-    // connection.
-    
+    eprintln!("Starting TCP server on {:?}", addr);
     let listener = TcpListener::bind(addr).unwrap();
+    eprintln!("Server bound successfully, waiting for connections...");
 
     for stream in listener.incoming() {
-        let stream = stream.unwrap();
-        thread::spawn(move || {
-            if let Err(e) = handle_conn(stream) {
-                eprintln!("Error: {:?}", e);
+        match stream {
+            Ok(stream) => {
+                eprintln!("New connection accepted from {:?}", stream.peer_addr());
+                thread::spawn(move || {
+                    if let Err(e) = handle_conn(stream) {
+                        eprintln!("Connection handler error: {:?}", e);
+                    }
+                    eprintln!("Connection handler thread terminated");
+                });
             }
-        });
+            Err(e) => {
+                eprintln!("Error accepting connection: {:?}", e);
+            }
+        }
     }
 }
 
 fn handle_conn(stream: TcpStream) -> Result<(), anyhow::Error> {
-    // TODO: Students will have to write this code.
-    // NOTE: It might be helpful to look at protocol.rs first. You'll probably
-    // be implementing that alongside this function.
-    //
-    // This function handles one client connection. It receives a
-    // ClientWorkPacket, does work using ClientWorkPacket::do_work which returns
-    // a ServerWorkPacket, then sends this ServerWorkPacket back to the client.
+    let peer_addr = stream.peer_addr()?;
+    eprintln!("Starting to handle connection from {:?}", peer_addr);
+    
     let mut client_conn = ClientWorkPacketConn::new(&stream);
     let mut server_conn = ServerWorkPacketConn::new(&stream);
-    let work_packet = client_conn.recv_work_msg()?;
+    
+    eprintln!("[{}] Waiting to receive work packet...", peer_addr);
+    let work_packet = match client_conn.recv_work_msg() {
+        Ok(packet) => {
+            eprintln!("[{}] Successfully received work packet", peer_addr);
+            packet
+        }
+        Err(e) => {
+            eprintln!("[{}] Failed to receive work packet: {:?}", peer_addr, e);
+            return Err(e);
+        }
+    };
+    
+    eprintln!("[{}] Processing work packet...", peer_addr);
     let server_work_packet = work_packet.do_work();
-    server_conn.send_work_msg(server_work_packet)?;
-
+    
+    eprintln!("[{}] Sending response packet...", peer_addr);
+    match server_conn.send_work_msg(server_work_packet) {
+        Ok(_) => eprintln!("[{}] Successfully sent response", peer_addr),
+        Err(e) => {
+            eprintln!("[{}] Failed to send response: {:?}", peer_addr, e);
+            return Err(e);
+        }
+    }
+    
+    eprintln!("[{}] Connection handled successfully", peer_addr);
     Ok(())
 }
