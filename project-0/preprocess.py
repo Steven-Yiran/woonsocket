@@ -26,7 +26,7 @@ def main():
         for workload in workloads:
             for thread in threads:
                 file_path = f"{DATA_DIR}/{generator}/{workload}/{thread}_latencies.txt"
-                df = pd.read_csv(file_path, header=None, sep=' ', names=["latency", "timestamp", "worktime", "received_timestamp"])
+                df = pd.read_csv(file_path, header=None, sep=' ', names=["latency"])
                 
                 # Calculate metrics
                 throughput = len(df) / RUN_TIME
