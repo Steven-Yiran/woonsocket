@@ -12,10 +12,10 @@ pub fn tcp_server(addr: SocketAddrV4) -> Result<(), anyhow::Error> {
     eprintln!("Starting TCP server on {:?}", addr);
     let listener = TcpListener::bind(addr).unwrap();
     eprintln!("Server bound successfully, waiting for connections...");
-
-    for stream in listener.incoming() {
-        match stream {
-            Ok(stream) => {
+    
+    loop {
+        match listener.accept() {
+            Ok((stream, _)) => {
                 eprintln!("New connection accepted from {:?}", stream.peer_addr());
                 thread::spawn(move || {
                     if let Err(e) = handle_conn(stream) {
@@ -26,11 +26,10 @@ pub fn tcp_server(addr: SocketAddrV4) -> Result<(), anyhow::Error> {
             }
             Err(e) => {
                 eprintln!("Error accepting connection: {:?}", e);
+                continue;
             }
         }
     }
-
-    Ok(())
 }
 
 fn handle_conn(stream: TcpStream) -> Result<(), anyhow::Error> {
