@@ -87,11 +87,8 @@ pub fn run(
         for latency in thread_latencies {
             writeln!(
                 output_file,
-                "{} {} {} {}",
+                "{}",
                 latency.latency,
-                latency.send_timestamp,
-                latency.server_processing_time,
-                latency.recv_timestamp
             )
             .unwrap();
         }
