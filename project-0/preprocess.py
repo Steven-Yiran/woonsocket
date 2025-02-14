@@ -49,7 +49,7 @@ def main():
             'p95_latency': p95_latencies,
             'p99_latency': p99_latencies,
             'workload': workload_types,
-            'threads': thread_counts
+            'threads/wait_time': thread_counts
         })
 
         # Save summary dataframe to CSV
