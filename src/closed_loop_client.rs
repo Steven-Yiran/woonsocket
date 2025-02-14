@@ -74,6 +74,8 @@ pub fn run(
     let mut request_latencies: Vec<Vec<LatencyRecord>> = Vec::new();
     for handle in join_handles {
         let thread_latencies = handle.join().unwrap();
+        // print the length of the thread_latencies
+        println!("Thread latency length: {}", thread_latencies.len());
         request_latencies.push(thread_latencies);
     }
 

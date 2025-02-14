@@ -10,3 +10,5 @@ perf.data
 perf.data.old
 client-data/
 server-data/
+
+.venv/
