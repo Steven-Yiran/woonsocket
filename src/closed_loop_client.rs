@@ -28,6 +28,7 @@ fn client_worker(server_addr: SocketAddrV4, runtime: Duration, work: Work) -> Ve
 
     let start = Instant::now();
     while start.elapsed() < runtime {
+        println!("elapsed: {:?}", start.elapsed());
         let work_packet = ClientWorkPacket::new(rand::random(), work);        
         // Send the work packet to the server
         if let Err(e) = client_conn.send_work_msg(work_packet) {
