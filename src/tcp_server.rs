@@ -80,7 +80,7 @@ pub fn tcp_server(addr: SocketAddrV4) -> Result<(), anyhow::Error> {
     let tracker_clone = Arc::clone(&load_tracker);
     thread::spawn(move || {
         loop {
-            thread::sleep(Duration::from_secs(9.5));
+            thread::sleep(Duration::from_secs(19));
             tracker_clone.print_metrics();
         }
     });
