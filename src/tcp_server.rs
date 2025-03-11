@@ -76,13 +76,6 @@ pub fn tcp_server(addr: SocketAddrV4) -> Result<(), anyhow::Error> {
     let listener = TcpListener::bind(addr).unwrap();
     let load_tracker = Arc::new(ServerLoadTracker::new());
     
-    // Set up a control-c handler to print metrics when server is stopped
-    let tracker_clone = Arc::clone(&load_tracker);
-    ctrlc::set_handler(move || {
-        tracker_clone.print_metrics();
-        std::process::exit(0);
-    }).expect("Error setting Ctrl-C handler");
-    
     // Periodically print metrics
     let tracker_clone = Arc::clone(&load_tracker);
     thread::spawn(move || {
