@@ -101,11 +101,16 @@ pub fn run(
         .collect();
 
     // Collect latencies and load metrics
-    let mut request_latencies: Vec<Vec<LatencyRecord>> = Vec::new();
     let mut total_attempts = 0;
     let mut total_runtime_secs = 0.0;
     let mut thread_loads = Vec::new();
+    let mut median_latencies = Vec::new();
+    let mut p95_latencies = Vec::new();
+    let mut p99_latencies = Vec::new();
     
+    // Define warm-up constant to ignore initial records for more accurate measurements
+    const WARM_UP: usize = 50;
+
     for (i, handle) in join_handles.into_iter().enumerate() {
         let (thread_latencies, load_tracker) = handle.join().unwrap();
         
@@ -116,11 +121,29 @@ pub fn run(
         total_attempts += load_tracker.request_count;
         total_runtime_secs += load_tracker.start_time.elapsed().as_secs_f64();
         
-        // Print thread metrics
-        println!("Thread {} latency count: {}", i, thread_latencies.len());
-        println!("Thread {} attempted load: {:.2} req/s", i, attempted_load);
+        // Calculate percentile latencies for this thread, ignoring warm-up records
+        if thread_latencies.len() > WARM_UP {
+            let mut latency_values: Vec<u64> = thread_latencies.iter()
+                .skip(WARM_UP)  // Skip the first WARM_UP records
+                .map(|record| record.latency)
+                .collect();
+            latency_values.sort();
+            
+            let median_idx = latency_values.len() / 2;
+            let p95_idx = (latency_values.len() as f64 * 0.95) as usize;
+            let p99_idx = (latency_values.len() as f64 * 0.99) as usize;
+            
+            median_latencies.push(latency_values[median_idx]);
+            p95_latencies.push(latency_values[p95_idx]);
+            p99_latencies.push(latency_values[p99_idx]);
+        }
         
-        request_latencies.push(thread_latencies);
+        // Print thread metrics
+        println!("Thread {} latency count: {} (after {} warm-up)", 
+                 i, 
+                 thread_latencies.len().saturating_sub(WARM_UP),
+                 WARM_UP);
+        println!("Thread {} attempted load: {:.2} req/s", i, attempted_load);        
     }
     
     // Calculate aggregate attempted load
@@ -141,19 +164,16 @@ pub fn run(
                  0.0 
              });
 
-    // Output latencies
-    let mut output_file = BufWriter::new(File::create(outdir.join("latencies.txt")).unwrap());
-    for thread_latencies in request_latencies {
-        for latency in thread_latencies {
-            writeln!(
-                output_file,
-                "{}",
-                latency.latency,
-            )
-            .unwrap();
-        }
-    }
-    
+    // Output mean aggregated latencies
+    let mean_median_latency = median_latencies.iter().sum::<u64>() as f64 / median_latencies.len() as f64;
+    let mean_p95_latency = p95_latencies.iter().sum::<u64>() as f64 / p95_latencies.len() as f64;
+    let mean_p99_latency = p99_latencies.iter().sum::<u64>() as f64 / p99_latencies.len() as f64;
+
+    println!("\nMean Aggregated Latencies:");
+    println!("Median latency: {:.2} us", mean_median_latency);
+    println!("95th percentile latency: {:.2} us", mean_p95_latency);
+    println!("99th percentile latency: {:.2} us", mean_p99_latency);
+
     // Output attempted load metrics to a separate file
     let mut load_file = BufWriter::new(File::create(outdir.join("attempted_load.txt")).unwrap());
     writeln!(load_file, "thread_id,attempted_load").unwrap();
