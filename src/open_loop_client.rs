@@ -19,6 +19,30 @@ use std::{
 
 use crate::app::Work;
 
+// Struct to track attempted load
+struct AttemptedLoadTracker {
+    packets_sent: Arc<AtomicU64>,
+    start_time: Instant,
+}
+
+impl AttemptedLoadTracker {
+    fn new(packets_sent: Arc<AtomicU64>) -> Self {
+        AttemptedLoadTracker {
+            packets_sent,
+            start_time: Instant::now(),
+        }
+    }
+
+    fn get_attempted_load(&self) -> f64 {
+        let elapsed_secs = self.start_time.elapsed().as_secs_f64();
+        if elapsed_secs > 0.0 {
+            self.packets_sent.load(Ordering::SeqCst) as f64 / elapsed_secs
+        } else {
+            0.0
+        }
+    }
+}
+
 fn client_open_loop(
     send_stream: TcpStream,
     thread_start_time: Instant,
@@ -36,7 +60,7 @@ fn client_open_loop(
             packets_sent.fetch_add(1, Ordering::SeqCst);
             next_send_time += thread_delay;
             if let Some(sleep_duration) = next_send_time.checked_duration_since(Instant::now()) {
-                thread::sleep(sleep_duration);
+                thread::sleep(sleep_duration); // spin lock, busy waiting, deficite tracking
             }
         } else {
             break;
@@ -94,7 +118,7 @@ fn init_client(
     thread_delay: Duration,
     runtime: Duration,
     work: Work,
-) -> JoinHandle<Vec<LatencyRecord>> {
+) -> (JoinHandle<Vec<LatencyRecord>>, Arc<AtomicU64>) {
     let stream = TcpStream::connect(&server_addr).expect("Couldn't connect to server");
     stream.set_nodelay(true).expect("set_nodelay call failed");
     let thread_start_time = Instant::now();
@@ -118,7 +142,7 @@ fn init_client(
         thread::spawn(move || client_recv_loop(stream, done))
     };
 
-    recv_handle
+    (recv_handle, sent)
 }
 
 pub fn run(
@@ -132,8 +156,20 @@ pub fn run(
     let thread_delay = interarrival * (num_threads as _);
 
     println!("start: thread_delay {:?}", thread_delay);
-    let join_handles: Vec<JoinHandle<Vec<LatencyRecord>>> = (0..num_threads)
-        .map(|_| init_client(server_addr, thread_delay, runtime, work))
+    
+    // Initialize clients and collect handles and packet counters
+    let mut join_handles = Vec::new();
+    let mut packet_counters = Vec::new();
+    
+    for i in 0..num_threads {
+        let (handle, packets_sent) = init_client(server_addr, thread_delay, runtime, work);
+        join_handles.push(handle);
+        packet_counters.push(packets_sent);
+    }
+
+    // Create load trackers for each thread
+    let load_trackers: Vec<_> = packet_counters.iter()
+        .map(|counter| AttemptedLoadTracker::new(counter.clone()))
         .collect();
 
     // Collect latencies
@@ -143,18 +179,81 @@ pub fn run(
         request_latencies.push(thread_latencies);
     }
 
-    // TODO: Output your request latencies to make your graph. You can calculate
-    // your graph data here, or output raw data and calculate them externally.
-    // You SHOULD write your output to outdir.
-    let mut output_file = BufWriter::new(File::create(outdir.join("latencies.txt")).unwrap());
-    for thread_latencies in request_latencies {
-        for latency in thread_latencies {
-            writeln!(
-                output_file,
-                "{}",
-                latency.latency,
-            )
-            .unwrap();
+    // Calculate and print load metrics
+    let mut thread_loads = Vec::new();
+    let mut total_packets = 0;
+    
+    for (i, tracker) in load_trackers.iter().enumerate() {
+        let attempted_load = tracker.get_attempted_load();
+        thread_loads.push(attempted_load);
+        
+        let packets = tracker.packets_sent.load(Ordering::SeqCst);
+        total_packets += packets;
+        
+        println!("Thread {} latency count: {}", i, request_latencies[i].len());
+        println!("Thread {} packets sent: {}", i, packets);
+        println!("Thread {} attempted load: {:.2} req/s", i, attempted_load);
+    }
+    
+    // Calculate aggregate metrics
+    let avg_runtime = load_trackers.iter()
+        .map(|tracker| tracker.start_time.elapsed().as_secs_f64())
+        .sum::<f64>() / num_threads as f64;
+    
+    let aggregate_attempted_load = if avg_runtime > 0.0 {
+        total_packets as f64 / avg_runtime
+    } else {
+        0.0
+    };
+    
+    println!("\nAggregate Metrics:");
+    println!("Total packets sent: {}", total_packets);
+    println!("Attempted load: {:.2} req/s", aggregate_attempted_load);
+    println!("Average attempted load per thread: {:.2} req/s", 
+             if !thread_loads.is_empty() { 
+                 thread_loads.iter().sum::<f64>() / thread_loads.len() as f64 
+             } else { 
+                 0.0 
+             });
+    
+    // Calculate latency percentiles if we have enough data
+    if request_latencies.iter().any(|latencies| !latencies.is_empty()) {
+        // Define warm-up constant to ignore initial records for more accurate measurements
+        const WARM_UP: usize = 50;
+        
+        let mut median_latencies = Vec::new();
+        let mut p95_latencies = Vec::new();
+        let mut p99_latencies = Vec::new();
+        
+        for thread_latencies in &request_latencies {
+            if thread_latencies.len() > WARM_UP {
+                let mut latency_values: Vec<u64> = thread_latencies.iter()
+                    .skip(WARM_UP)  // Skip the first WARM_UP records
+                    .map(|record| record.latency)
+                    .collect();
+                latency_values.sort();
+                
+                if !latency_values.is_empty() {
+                    let median_idx = latency_values.len() / 2;
+                    let p95_idx = (latency_values.len() as f64 * 0.95) as usize;
+                    let p99_idx = (latency_values.len() as f64 * 0.99) as usize;
+                    
+                    median_latencies.push(latency_values[median_idx]);
+                    p95_latencies.push(latency_values[p95_idx]);
+                    p99_latencies.push(latency_values[p99_idx]);
+                }
+            }
+        }
+        
+        if !median_latencies.is_empty() {
+            let mean_median_latency = median_latencies.iter().sum::<u64>() as f64 / median_latencies.len() as f64;
+            let mean_p95_latency = p95_latencies.iter().sum::<u64>() as f64 / p95_latencies.len() as f64;
+            let mean_p99_latency = p99_latencies.iter().sum::<u64>() as f64 / p99_latencies.len() as f64;
+            
+            println!("\nMean Aggregated Latencies:");
+            println!("Median latency: {:.2} us", mean_median_latency);
+            println!("95th percentile latency: {:.2} us", mean_p95_latency);
+            println!("99th percentile latency: {:.2} us", mean_p99_latency);
         }
     }
 }
