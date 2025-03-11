@@ -136,14 +136,7 @@ pub fn run(
             median_latencies.push(latency_values[median_idx]);
             p95_latencies.push(latency_values[p95_idx]);
             p99_latencies.push(latency_values[p99_idx]);
-        }
-        
-        // Print thread metrics
-        println!("Thread {} latency count: {} (after {} warm-up)", 
-                 i, 
-                 thread_latencies.len().saturating_sub(WARM_UP),
-                 WARM_UP);
-        println!("Thread {} attempted load: {:.2} req/s", i, attempted_load);        
+        }  
     }
     
     // Calculate aggregate attempted load
@@ -173,12 +166,4 @@ pub fn run(
     println!("Median latency: {:.2} us", mean_median_latency);
     println!("95th percentile latency: {:.2} us", mean_p95_latency);
     println!("99th percentile latency: {:.2} us", mean_p99_latency);
-
-    // Output attempted load metrics to a separate file
-    let mut load_file = BufWriter::new(File::create(outdir.join("attempted_load.txt")).unwrap());
-    writeln!(load_file, "thread_id,attempted_load").unwrap();
-    for (i, load) in thread_loads.iter().enumerate() {
-        writeln!(load_file, "{},{:.2}", i, load).unwrap();
-    }
-    writeln!(load_file, "aggregate,{:.2}", aggregate_attempted_load).unwrap();
 }
