@@ -42,5 +42,5 @@ fn main() {
     std::thread::spawn(move || match args.kind {
         ServerKind::tcp => tcp_server(addr),
     });
-    std::thread::sleep(Duration::from_secs(runtime_secs));
+    std::thread::sleep(Duration::from_secs(runtime_secs + 1));
 }

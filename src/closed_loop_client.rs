@@ -43,14 +43,13 @@ impl AttemptedLoadTracker {
 
 fn client_worker(server_addr: SocketAddrV4, runtime: Duration, work: Work) -> (Vec<LatencyRecord>, AttemptedLoadTracker) {
     let mut latencies = Vec::new();
-    let stream = TcpStream::connect(&server_addr).expect("Failed to connect to server");
-    let mut client_conn = ClientWorkPacketConn::new(&stream);
-    let mut server_conn = ServerWorkPacketConn::new(&stream);
-
     let mut load_tracker = AttemptedLoadTracker::new();
     let start = Instant::now();
-    
     while start.elapsed().as_secs() < runtime.as_secs() {
+        let stream = TcpStream::connect(&server_addr).expect("Failed to connect to server");
+        let mut client_conn = ClientWorkPacketConn::new(&stream);
+        let mut server_conn = ServerWorkPacketConn::new(&stream);
+
         let work_packet = ClientWorkPacket::new(rand::random(), work);
         
         // Record attempt before sending

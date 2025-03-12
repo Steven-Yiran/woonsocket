@@ -101,17 +101,12 @@ pub fn tcp_server(addr: SocketAddrV4) -> Result<(), anyhow::Error> {
             }
         }
     }
-
     Ok(())
 }
 
 fn handle_conn(stream: TcpStream, load_tracker: Arc<ServerLoadTracker>) -> Result<(), anyhow::Error> {    
     let mut client_conn = ClientWorkPacketConn::new(&stream);
     let mut server_conn = ServerWorkPacketConn::new(&stream);
-    
-    // Record that we're about to receive a request
-    load_tracker.record_received();
-    
     let work_packet = match client_conn.recv_work_msg() {
         Ok(packet) => {
             packet
@@ -120,12 +115,11 @@ fn handle_conn(stream: TcpStream, load_tracker: Arc<ServerLoadTracker>) -> Resul
             return Err(e);
         }
     };
+    load_tracker.record_received();
     let server_work_packet = work_packet.do_work();
     if let Err(e) = server_conn.send_work_msg(server_work_packet) {
         return Err(e);
     }
-    // Record that we've completed processing a request
     load_tracker.record_completed();
-
     Ok(())
 }
