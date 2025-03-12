@@ -59,8 +59,9 @@ fn client_open_loop(
         if conn.send_work_msg(work_packet).is_ok() {
             packets_sent.fetch_add(1, Ordering::SeqCst);
             next_send_time += thread_delay;
-            if let Some(sleep_duration) = next_send_time.checked_duration_since(Instant::now()) {
-                thread::sleep(sleep_duration); // spin lock, busy waiting, deficite tracking
+            // Use spin lock instead of thread::sleep
+            while Instant::now() < next_send_time {
+                std::hint::spin_loop();
             }
         } else {
             break;
