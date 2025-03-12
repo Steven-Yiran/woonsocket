@@ -126,4 +126,6 @@ fn handle_conn(stream: TcpStream, load_tracker: Arc<ServerLoadTracker>) -> Resul
     }
     // Record that we've completed processing a request
     load_tracker.record_completed();
+
+    Ok(())
 }
