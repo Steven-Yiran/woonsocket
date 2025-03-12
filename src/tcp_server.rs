@@ -80,7 +80,7 @@ pub fn tcp_server(addr: SocketAddrV4) -> Result<(), anyhow::Error> {
     let tracker_clone = Arc::clone(&load_tracker);
     thread::spawn(move || {
         loop {
-            thread::sleep(Duration::from_secs(19));
+            thread::sleep(Duration::from_secs(5));
             tracker_clone.print_metrics();
         }
     });
@@ -105,33 +105,25 @@ pub fn tcp_server(addr: SocketAddrV4) -> Result<(), anyhow::Error> {
     Ok(())
 }
 
-fn handle_conn(stream: TcpStream, load_tracker: Arc<ServerLoadTracker>) -> Result<(), anyhow::Error> {
-    let peer_addr = stream.peer_addr()?;
-    eprintln!("Starting to handle connection from {:?}", peer_addr);
-    
+fn handle_conn(stream: TcpStream, load_tracker: Arc<ServerLoadTracker>) -> Result<(), anyhow::Error> {    
     let mut client_conn = ClientWorkPacketConn::new(&stream);
     let mut server_conn = ServerWorkPacketConn::new(&stream);
     
-    loop {
-        // Record that we're about to receive a request
-        load_tracker.record_received();
-        
-        let work_packet = match client_conn.recv_work_msg() {
-            Ok(packet) => {
-                packet
-            }
-            Err(e) => {
-                return Err(e);
-            }
-        };
-        
-        let server_work_packet = work_packet.do_work();
-        
-        if let Err(e) = server_conn.send_work_msg(server_work_packet) {
+    // Record that we're about to receive a request
+    load_tracker.record_received();
+    
+    let work_packet = match client_conn.recv_work_msg() {
+        Ok(packet) => {
+            packet
+        }
+        Err(e) => {
             return Err(e);
         }
-        
-        // Record that we've completed processing a request
-        load_tracker.record_completed();
+    };
+    let server_work_packet = work_packet.do_work();
+    if let Err(e) = server_conn.send_work_msg(server_work_packet) {
+        return Err(e);
     }
+    // Record that we've completed processing a request
+    load_tracker.record_completed();
 }
