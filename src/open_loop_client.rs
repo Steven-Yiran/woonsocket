@@ -153,17 +153,13 @@ pub fn run(
     runtime: Duration,
     work: Work,
     outdir: PathBuf,
-) {
-    let thread_delay = interarrival * (num_threads as _);
-
-    println!("start: thread_delay {:?}", thread_delay);
-    
+) {    
     // Initialize clients and collect handles and packet counters
     let mut join_handles = Vec::new();
     let mut packet_counters = Vec::new();
     
     for i in 0..num_threads {
-        let (handle, packets_sent) = init_client(server_addr, thread_delay, runtime, work);
+        let (handle, packets_sent) = init_client(server_addr, interarrival, runtime, work);
         join_handles.push(handle);
         packet_counters.push(packets_sent);
     }
